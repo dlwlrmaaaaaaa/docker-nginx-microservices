@@ -1,0 +1,88 @@
+version: "3.7"
+
+services:
+  react:
+    build:
+      context: ./docker-react
+      dockerfile: Dockerfile
+    container_name: react
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./docker-react:/app
+      - /app/node_modules
+    depends_on:
+      - laravel
+      - express
+    networks:
+      - docker-nginx-micro-project
+  
+  laravel:
+    build:
+      context: ./docker-laravel
+      dockerfile: Dockerfile
+    container_name: laravel
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./docker-laravel:/app
+      - /app/vendor
+    depends_on:
+       mysql:
+          condition: service_healthy
+    environment:
+      - APP_KEY=base64:9M3a9XhGdmE9hIjRgfXbdhO5HlH23sbX92X0LfP9L78=
+      - APP_NAME=MICRO_APP
+      - DB_CONNECTION=mysql
+      - DB_HOST=mysql
+      - DB_USERNAME=root
+      - DB_PASSWORD=root
+      - DB_DATABASE=docker
+    networks:
+      - docker-nginx-micro-project
+
+  express:
+    build:
+      context: ./docker-express
+      dockerfile: Dockerfile
+    container_name: express
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./docker-express:/app
+      - /app/node_modules
+    depends_on:
+      - mysql
+    environment:
+      - APP_NAME=MICRO_APP
+      - DB_HOST=mysql
+      - DB_USER=root
+      - DB_PASSWORD=root
+      - DB_NAME=docker
+    networks:
+      - docker-nginx-micro-project
+  
+  mysql:
+    image: mysql:5.7
+    container_name: mysql
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: docker
+    volumes:
+      - mysql-data:/var/lib/mysql
+    networks:
+      - docker-nginx-micro-project
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      retries: 5
+      timeout: 5s
+    
+networks:
+  docker-nginx-micro-project:
+    driver: bridge
+
+volumes:
+  mysql-data:
